@@ -21,9 +21,9 @@ def main():
     )
 
     if uploaded:
-        print("Premier upload réussi")
+        print("Premier upload réussi !")
     else:
-        print("Le blob existe déjà")
+        print("Le blob existe déjà !")
 
 
 if __name__ == "__main__":
