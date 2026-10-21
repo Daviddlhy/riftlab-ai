@@ -63,7 +63,7 @@ def main():
 
             status = error.response.status_code if error.response is not None else None
             if status in (401, 403, 429):
-                print("Arrêt : problème d'accès ou quota Riot.")
+                print("Arrêt : problème d'accès ou quota Riot !")
                 break
 
         except (requests.RequestException, ValueError, KeyError, OSError) as error:
