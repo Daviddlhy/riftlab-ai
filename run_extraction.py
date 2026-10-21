@@ -71,9 +71,9 @@ def main():
             logging.error("Échec %s : %s", match_id, error)
 
     print("\n===== BILAN EXTRACTION =====")
-    print(f"Matchs traités : {stats['processed.']}")
-    print(f"Matchs ignorés : {stats['skipped.']}")
-    print(f"Matchs échoués : {stats['failed.']}")
+    print(f"Matchs traités : {stats['processed']}")
+    print(f"Matchs ignorés : {stats['skipped']}")
+    print(f"Matchs échoués : {stats['failed']}")
 
 
 if __name__ == "__main__":
