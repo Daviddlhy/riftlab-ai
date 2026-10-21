@@ -3,15 +3,33 @@ name = "riftlab-ai"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "azure-identity>=1.26.0",
+    "azure-storage-blob>=12.31.0",
     "python-dotenv>=1.2.4",
     "requests>=2.34.2",
 ]
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.7.0",
     "pytest>=9.1.1",
+    "ruff>=0.17.1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # Erreurs de style
+    "F",   # Erreurs Python
+    "I",   # Organisation des imports
+    "B",   # Bugs potentiels
+    "UP",  # Modernisation Python
+]
