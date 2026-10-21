@@ -1,4 +1,3 @@
-
 import os
 
 from dotenv import load_dotenv
@@ -12,15 +11,10 @@ def main():
     client = RiotClient()
 
     account = client.get_account(
-        game_name=os.environ["RIOT_GAME_NAME"],
-        tag_line=os.environ["RIOT_TAG_LINE"]
+        game_name=os.environ["RIOT_GAME_NAME"], tag_line=os.environ["RIOT_TAG_LINE"]
     )
 
-    match_ids = client.get_all_match_ids(
-        puuid=account["puuid"],
-        max_matches=5,
-        page_size=5
-    )
+    match_ids = client.get_all_match_ids(puuid=account["puuid"], max_matches=5, page_size=5)
 
     print("Connexion Riot API : OK")
     print(f"Matchs récupérés : {len(match_ids)}")

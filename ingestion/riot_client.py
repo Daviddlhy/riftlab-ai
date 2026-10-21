@@ -1,13 +1,14 @@
+import logging
 import os
+import random
+import time
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from urllib.parse import quote
 
 import requests
 from dotenv import load_dotenv
-import logging
-import random
-import time
-from email.utils import parsedate_to_datetime
-from datetime import datetime, timezone
+
 
 class RiotClient:
     """Client HTTP pour l'API Riot Games."""
@@ -29,11 +30,8 @@ class RiotClient:
 
         # Horodatage de la dernière requête
         self.last_request_time = None
-        self.session.headers.update({
-            "X-Riot-Token": api_key
-        })
+        self.session.headers.update({"X-Riot-Token": api_key})
 
-    
     def _wait_for_rate_limit(self) -> None:
         """Espace les requêtes HTTP pour limiter leur débit."""
 
@@ -49,8 +47,6 @@ class RiotClient:
 
         self.last_request_time = time.monotonic()
 
-
-    
     def _get(self, endpoint: str, params: dict | None = None):
         """GET avec retry sur rate limit et erreurs temporaires."""
 
@@ -78,25 +74,15 @@ class RiotClient:
                             delay = max(0, float(retry_after))
                         except ValueError:
                             try:
-                                retry_date = parsedate_to_datetime(
-                                    retry_after
-                                )
+                                retry_date = parsedate_to_datetime(retry_after)
                                 if retry_date.tzinfo is None:
-                                    retry_date = retry_date.replace(
-                                        tzinfo=timezone.utc
-                                    )
-                                delay = max(
-                                    0,
-                                    (
-                                        retry_date
-                                        - datetime.now(timezone.utc)
-                                    ).total_seconds()
-                                )
+                                    retry_date = retry_date.replace(tzinfo=UTC)
+                                delay = max(0, (retry_date - datetime.now(UTC)).total_seconds())
                             except (TypeError, ValueError, OverflowError):
                                 pass
 
                     if delay is None:
-                        delay = min(2 ** attempt, 30)
+                        delay = min(2**attempt, 30)
                         delay += random.uniform(0, 0.5)
 
                     logging.warning(
@@ -118,7 +104,7 @@ class RiotClient:
                 if attempt == max_attempts - 1:
                     raise
 
-                delay = min(2 ** attempt, 30)
+                delay = min(2**attempt, 30)
                 delay += random.uniform(0, 0.5)
 
                 logging.warning(
@@ -128,7 +114,6 @@ class RiotClient:
                 time.sleep(delay)
 
         raise RuntimeError("Riot API retries exhausted")
-
 
     def get_account(self, game_name: str, tag_line: str) -> dict:
         """Récupère le PUUID d'un compte Riot."""
@@ -146,55 +131,32 @@ class RiotClient:
         return data
 
     def get_match_ids(
-            self,
-            puuid: str,
-            start: int = 0,
-            count: int = 20,
-            queue: int = 420
+        self, puuid: str, start: int = 0, count: int = 20, queue: int = 420
     ) -> list[str]:
         """Récupère une page de matchs calssés Solo/Duo."""
 
         if not 1 <= count <= 100:
             raise ValueError("Count must be between 1 and 100")
-        endpoint = (
-            "/lol/match/v5/matches/by-puuid/"
-            f"{quote(puuid, safe='')}/ids"
-        )
+        endpoint = f"/lol/match/v5/matches/by-puuid/{quote(puuid, safe='')}/ids"
 
-        return self._get(
-            endpoint,
-            params={
-                "start": start,
-                "count": count,
-                "queue": queue
-            }
-        )
+        return self._get(endpoint, params={"start": start, "count": count, "queue": queue})
 
     def get_match(self, match_id: str) -> dict:
         """Récupère les détails d'un match."""
 
-        endpoint = (
-            f"/lol/match/v5/matches/{quote(match_id, safe='')}"
-        )
+        endpoint = f"/lol/match/v5/matches/{quote(match_id, safe='')}"
 
         return self._get(endpoint)
 
     def get_timeline(self, match_id: str) -> dict:
         """Récupère la timeline d'un match."""
 
-        endpoint = (
-            f"/lol/match/v5/matches/{quote(match_id, safe='')}/timeline"
-        )
+        endpoint = f"/lol/match/v5/matches/{quote(match_id, safe='')}/timeline"
 
         return self._get(endpoint)
 
-
     def get_all_match_ids(
-        self,
-        puuid: str,
-        max_matches: int = 100,
-        page_size: int = 20,
-        queue: int = 420
+        self, puuid: str, max_matches: int = 100, page_size: int = 20, queue: int = 420
     ) -> list[str]:
         """Récupère plusieurs pages de Match IDs."""
 
@@ -208,17 +170,9 @@ class RiotClient:
         start = 0
 
         while len(match_ids) < max_matches:
-            count = min(
-                page_size,
-                max_matches - len(match_ids)
-            )
+            count = min(page_size, max_matches - len(match_ids))
 
-            page = self.get_match_ids(
-                puuid=puuid,
-                start=start,
-                count=count,
-                queue=queue
-            )
+            page = self.get_match_ids(puuid=puuid, start=start, count=count, queue=queue)
 
             if not page:
                 break

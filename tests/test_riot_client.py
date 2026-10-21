@@ -1,4 +1,3 @@
-
 from unittest.mock import Mock, patch
 
 from ingestion.riot_client import RiotClient
@@ -15,19 +14,11 @@ def test_retry_on_429():
 
     response_200 = Mock()
     response_200.status_code = 200
-    response_200.json.return_value = {
-        "status": "success"
-    }
+    response_200.json.return_value = {"status": "success"}
 
-    with patch.object(
-        client.session,
-        "get",
-        side_effect=[response_429, response_200]
-    ) as mock_get:
+    with patch.object(client.session, "get", side_effect=[response_429, response_200]) as mock_get:
         with patch.object(client, "_wait_for_rate_limit"):
-            with patch(
-                "ingestion.riot_client.time.sleep"
-            ) as mock_sleep:
+            with patch("ingestion.riot_client.time.sleep") as mock_sleep:
                 result = client._get("/test")
 
     assert result == {"status": "success"}
@@ -41,19 +32,9 @@ def test_rate_limiting():
     client = RiotClient()
     client.min_request_interval = 1.5
 
-    with patch(
-        "ingestion.riot_client.time.monotonic"
-    ) as clock:
-        with patch(
-            "ingestion.riot_client.time.sleep"
-        ) as sleep:
-
-            clock.side_effect = [
-                100.0,
-                100.0,
-                100.5,
-                101.5
-            ]
+    with patch("ingestion.riot_client.time.monotonic") as clock:
+        with patch("ingestion.riot_client.time.sleep") as sleep:
+            clock.side_effect = [100.0, 100.0, 100.5, 101.5]
 
             client._wait_for_rate_limit()
             client._wait_for_rate_limit()

@@ -1,17 +1,15 @@
-
 import logging
 import os
 
 import requests
 from dotenv import load_dotenv
 
-from ingestion.riot_client import RiotClient
 from ingestion.extract_matches import (
     DATA_DIR,
     extract_match,
     is_valid_json,
 )
-
+from ingestion.riot_client import RiotClient
 
 MAX_MATCHES = 50  # Premier test, puis 50
 
@@ -47,9 +45,8 @@ def main():
         match_path = DATA_DIR / "matches" / f"{match_id}.json"
         timeline_path = DATA_DIR / "timelines" / f"{match_id}.json"
 
-        already_complete = (
-            is_valid_json(match_path, match_id, "match")
-            and is_valid_json(timeline_path, match_id, "timeline")
+        already_complete = is_valid_json(match_path, match_id, "match") and is_valid_json(
+            timeline_path, match_id, "timeline"
         )
 
         try:
