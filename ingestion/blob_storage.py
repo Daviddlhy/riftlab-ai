@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 
@@ -35,7 +36,7 @@ class BlobStorage:
         local_path: Path,
         blob_name: str,
     ) -> bool:
-        """Envoie un fichier sans écraser un blob existant."""
+        """Envoie un fichier ; ignore un blob existant seulement s'il est identique."""
 
         local_path = Path(local_path)
 
@@ -50,8 +51,16 @@ class BlobStorage:
                     overwrite=False,
                 )
             except ResourceExistsError:
-                print(f"SKIP Azure : {blob_name}")
+                self.verify_file(local_path, blob_name)
                 return False
 
-        print(f"UPLOAD Azure : {blob_name}")
         return True
+
+    def verify_file(self, local_path: Path, blob_name: str) -> str:
+        """Compare les octets locaux et distants ; retourne leur SHA-256 commun."""
+        local_hash = hashlib.sha256(Path(local_path).read_bytes()).hexdigest()
+        remote = self.container.download_blob(blob_name).readall()
+        remote_hash = hashlib.sha256(remote).hexdigest()
+        if remote_hash != local_hash:
+            raise ValueError(f"Contenu Azure différent du fichier local : {blob_name}")
+        return local_hash

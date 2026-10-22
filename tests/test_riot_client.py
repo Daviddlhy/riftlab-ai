@@ -1,15 +1,20 @@
 from unittest.mock import Mock, patch
 
+import pytest
+
 from ingestion.riot_client import RiotClient
 
 
-def test_retry_on_429():
-    """Vérifie le retry après une réponse HTTP 429."""
+@pytest.mark.parametrize("status_code", [429, 503])
+def test_retry_on_transient_error(status_code, caplog):
+    """Vérifie le retry, son délai et la corrélation sans exposer le PUUID."""
 
     client = RiotClient()
+    client.run_id = "test-run"
+    caplog.set_level("INFO", logger="riftlab.ingestion")
 
     response_429 = Mock()
-    response_429.status_code = 429
+    response_429.status_code = status_code
     response_429.headers = {"Retry-After": "1"}
 
     response_200 = Mock()
@@ -19,11 +24,14 @@ def test_retry_on_429():
     with patch.object(client.session, "get", side_effect=[response_429, response_200]) as mock_get:
         with patch.object(client, "_wait_for_rate_limit"):
             with patch("ingestion.riot_client.time.sleep") as mock_sleep:
-                result = client._get("/test")
+                result = client._get("/lol/match/v5/matches/by-puuid/private-puuid/ids")
 
     assert result == {"status": "success"}
     assert mock_get.call_count == 2
     mock_sleep.assert_called_once_with(1.0)
+    assert '"event": "api_retry"' in caplog.text
+    assert '"run_id": "test-run"' in caplog.text
+    assert "private-puuid" not in caplog.text
 
 
 def test_rate_limiting():

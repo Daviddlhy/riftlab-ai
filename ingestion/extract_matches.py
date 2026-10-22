@@ -8,6 +8,34 @@ from ingestion.riot_client import RiotClient
 DATA_DIR = Path("data")
 
 
+def validate_payload(data: dict, match_id: str, data_type: str) -> None:
+    """Contrat minimal commun aux réponses Riot et aux fichiers locaux."""
+    field = {"match": "participants", "timeline": "frames"}[data_type]
+    try:
+        valid = (
+            data["metadata"]["matchId"] == match_id
+            and isinstance(data["info"][field], list)
+            and bool(data["info"][field])
+        )
+    except (KeyError, TypeError):
+        valid = False
+    if not valid:
+        raise ValueError(f"Invalid {data_type} payload")
+
+
+def extract_payload(client, match_id: str, data_type: str, path: Path) -> bool:
+    """Réutilise un fichier valide ou récupère et valide un endpoint Riot."""
+    if is_valid_json(path, match_id, data_type):
+        return False
+    if client is None:
+        raise ValueError("Missing or invalid local payload")
+    fetch = client.get_match if data_type == "match" else client.get_timeline
+    data = fetch(match_id)
+    validate_payload(data, match_id, data_type)
+    save_json_atomic(data, path)
+    return True
+
+
 def is_valid_json(path: Path, match_id: str, data_type: str) -> bool:
     """Vérifie l'intégrité minimale d'un JSON Riot."""
 
@@ -18,19 +46,8 @@ def is_valid_json(path: Path, match_id: str, data_type: str) -> bool:
         with path.open("r", encoding="utf-8") as file:
             data = json.load(file)
 
-        if data["metadata"]["matchId"] != match_id:
-            return False
-
-        if data_type == "match":
-            return (
-                isinstance(data["info"]["participants"], list)
-                and len(data["info"]["participants"]) > 0
-            )
-
-        if data_type == "timeline":
-            return isinstance(data["info"]["frames"], list) and len(data["info"]["frames"]) > 0
-
-        return False
+        validate_payload(data, match_id, data_type)
+        return True
 
     except (OSError, ValueError, KeyError, TypeError):
         return False
@@ -72,26 +89,8 @@ def extract_match(client: RiotClient, match_id: str) -> None:
         ("timeline", DATA_DIR / "timelines" / f"{match_id}.json", client.get_timeline),
     )
 
-    for data_type, path, fetch in targets:
-        if is_valid_json(path, match_id, data_type):
+    for data_type, path, _fetch in targets:
+        if not extract_payload(client, match_id, data_type, path):
             print(f"SKIP {data_type} : {match_id}")
             continue
-
-        if path.exists():
-            print(f"JSON invalide, remplacement : {path}")
-
-        data = fetch(match_id)
-
-        if data["metadata"]["matchId"] != match_id:
-            raise ValueError(f"{data_type} match ID mismatch: {match_id}")
-
-        if data_type == "match":
-            if not isinstance(data["info"]["participants"], list):
-                raise ValueError("Missing participants")
-
-        if data_type == "timeline":
-            if not isinstance(data["info"]["frames"], list):
-                raise ValueError("Missing frames")
-
-        save_json_atomic(data, path)
         print(f"Sauvegardé : {path}")

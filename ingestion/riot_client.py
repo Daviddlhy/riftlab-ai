@@ -9,12 +9,15 @@ from urllib.parse import quote
 import requests
 from dotenv import load_dotenv
 
+from ingestion.observability import emit
+
 
 class RiotClient:
     """Client HTTP pour l'API Riot Games."""
 
     def __init__(self):
         load_dotenv()
+        self.run_id = None
 
         api_key = os.getenv("RIOT_API_KEY")
         region = os.getenv("RIOT_REGION", "europe")
@@ -85,13 +88,7 @@ class RiotClient:
                         delay = min(2**attempt, 30)
                         delay += random.uniform(0, 0.5)
 
-                    logging.warning(
-                        "Riot API HTTP %s - retry %s/%s in %.1fs",
-                        response.status_code,
-                        attempt + 1,
-                        max_attempts,
-                        delay,
-                    )
+                    self._log_retry(endpoint, attempt + 1, delay, response.status_code)
 
                     time.sleep(delay)
                     continue
@@ -107,13 +104,31 @@ class RiotClient:
                 delay = min(2**attempt, 30)
                 delay += random.uniform(0, 0.5)
 
-                logging.warning(
-                    "Riot API network error - retry in %.1fs",
-                    delay,
-                )
+                self._log_retry(endpoint, attempt + 1, delay)
                 time.sleep(delay)
 
         raise RuntimeError("Riot API retries exhausted")
+
+    def _log_retry(self, endpoint, attempt, delay, status_code=None):
+        if self.run_id:
+            if "/by-riot-id/" in endpoint:
+                endpoint_type = "account"
+            elif "/by-puuid/" in endpoint:
+                endpoint_type = "match_ids"
+            elif endpoint.endswith("/timeline"):
+                endpoint_type = "timeline"
+            else:
+                endpoint_type = "match"
+            emit(
+                "api_retry",
+                self.run_id,
+                endpoint_type=endpoint_type,
+                attempt=attempt,
+                wait_seconds=delay,
+                status_code=status_code,
+            )
+        else:
+            logging.warning("Riot API retry %s in %.1fs (HTTP %s)", attempt, delay, status_code)
 
     def get_account(self, game_name: str, tag_line: str) -> dict:
         """Récupère le PUUID d'un compte Riot."""
