@@ -5,6 +5,13 @@ import pytest
 from ingestion.riot_client import RiotClient
 
 
+@pytest.fixture(autouse=True)
+def riot_test_environment(monkeypatch):
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
+    monkeypatch.setenv("RIOT_API_KEY", "fake-key-for-tests")
+    monkeypatch.setenv("RIOT_REGION", "europe")
+
+
 @pytest.mark.parametrize("status_code", [429, 503])
 def test_retry_on_transient_error(status_code, caplog):
     """Vérifie le retry, son délai et la corrélation sans exposer le PUUID."""
