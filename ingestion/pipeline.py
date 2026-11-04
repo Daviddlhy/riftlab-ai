@@ -22,6 +22,7 @@ def run_pipeline(
     match_ids=None,
     max_matches=50,
     data_dir=Path("data"),
+    request_id=None,
 ) -> dict:
     """Chaque endpoint a une issue : written, skipped, failed ou not_processed.
 
@@ -45,6 +46,8 @@ def run_pipeline(
         "counts": {},
         "interrupted": False,
     }
+    if request_id is not None:
+        report["request_id"] = request_id
 
     def checkpoint():
         report["counts"] = {
@@ -59,7 +62,7 @@ def run_pipeline(
         save_json_atomic(report, manifest_path)
 
     checkpoint()
-    emit("run_started", run_id)
+    emit("run_started", run_id, **({"request_id": request_id} if request_id else {}))
     run_stage = "discovery"
     try:
         if client is not None:

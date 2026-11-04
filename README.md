@@ -57,3 +57,51 @@ opérations restantes à `not_processed`. Les autres erreurs d'objets permettent
 continuer le lot. Si la publication ou la relecture du manifest échoue, le résultat
 local passe à `FAILED` avec `manifest_publish` ; le manifest distant peut être absent
 ou refléter le bilan antérieur à cette erreur. Consulter alors le checkpoint local.
+
+## Azure Functions
+
+Recette cloud : [validation du 22 octobre 2026](docs/validation-azure-functions.md).
+
+Le déploiement utilise Python 3.12 sur Flex Consumption. Une requête HTTP protégée
+met le travail dans Azure Storage Queue et retourne un `request_id` (HTTP 202).
+Le worker exécute le pipeline dans un répertoire temporaire isolé, puis publie le
+manifest et le résultat de la demande dans Blob. Aucun déclencheur quotidien n'est activé.
+
+```bash
+uv sync
+uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt --output-file requirements.txt
+az login
+uv run python -m scripts.deploy_function --app-name func-riftlab-dev-023139 --host-storage striftlabfunc023139
+uv run python -m scripts.invoke_function --app-name func-riftlab-dev-023139 --max-matches 3
+```
+
+Le script de déploiement crée un stockage interne distinct, la Function App et sa
+supervision, puis attribue à l'identité managée le rôle `Storage Blob Data Contributor`
+sur le seul conteneur RAW. Il transfère les variables Riot depuis `.env` vers les
+paramètres Azure sans les afficher. Renouveler une clé Riot impose de retransférer
+ce paramètre vers Azure ; modifier uniquement `.env` ne met pas l'application à jour.
+Les connexions du runtime Functions et de la queue sont gérées séparément par
+`AzureWebJobsStorage` ; le code métier utilise l'identité managée pour Blob.
+
+Le package ZIP est construit par liste explicite de fichiers, sans `.env`, données,
+tests ni environnement Python local. Les dépendances sont compilées dans Azure
+pour Linux. Les trois fonctions sont dans `function_app.py` :
+
+- `POST /api/ingestion` : corps `{"max_matches": 3}`, entier entre 1 et 50.
+- `GET /api/ingestion/{request_id}` : résultat final ou HTTP 202 si en attente/inconnu.
+- `ingest_worker` : traitement de la queue `riftlab-ingestion`.
+
+Les deux routes HTTP exigent une clé dans l'en-tête `x-functions-key`. Le script
+d'invocation la récupère en mémoire via Azure CLI et vérifie aussi le refus sans clé.
+Le résultat final est stocké dans `requests/<request_id>.json` et contient le `run_id`
+et le chemin du manifest. Il est préférable de commencer par 3 matchs : le disque
+temporaire cloud ne réutilise pas les fichiers du poste local, donc Riot est sollicité
+à nouveau, même si les blobs finissent par être ignorés après comparaison.
+
+Une erreur métier produit un résultat `FAILED` ou `PARTIAL_SUCCESS` ; relancer
+manuellement après correction. Une erreur technique non récupérée est envoyée
+dans `riftlab-ingestion-poison` après une tentative, sans boucle automatique sur
+une clé Riot expirée. Un arrêt forcé peut laisser une demande sans résultat : consulter
+les logs et la queue poison. La concurrence est limitée par instance ; lancer un seul
+lot à la fois pour respecter le quota Riot partagé. Ne pas augmenter le volume
+ou multiplier les lancements avant d'avoir défini une limite de débit partagée.

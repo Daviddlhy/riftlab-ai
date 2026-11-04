@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from azure.core.exceptions import ResourceExistsError
-from azure.identity import AzureCliCredential
+from azure.identity import AzureCliCredential, ManagedIdentityCredential
 from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 
@@ -22,7 +22,10 @@ class BlobStorage:
 
         account_url = f"https://{account_name}.blob.core.windows.net"
 
-        credential = AzureCliCredential()
+        # Azure Functions fournit IDENTITY_ENDPOINT pour son identité managée.
+        credential = (
+            ManagedIdentityCredential() if os.getenv("IDENTITY_ENDPOINT") else AzureCliCredential()
+        )
 
         service_client = BlobServiceClient(
             account_url=account_url,
