@@ -1,0 +1,83 @@
+version: 2
+
+models:
+  - name: stg_matches
+    description: "Un match par ID ; dernière ingestion retenue, provenance conservée. Durée en secondes."
+    columns:
+      - name: match_id
+        data_tests: [not_null, unique]
+      - name: game_start_utc
+        data_tests: [not_null]
+      - name: duration_seconds
+        data_tests: [not_null]
+  - name: stg_timelines
+    description: "Une timeline par match ; frames conservées pour les prochains modèles temporels."
+    columns:
+      - name: match_id
+        data_tests: [not_null, unique]
+  - name: int_match_participants
+    description: "Une ligne par participant et match, sans filtre de périmètre."
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [match_id, participant_id]
+    columns:
+      - name: match_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_matches')
+                field: match_id
+      - name: participant_id
+        data_tests: [not_null]
+      - name: puuid
+        description: "Identifiant stable du joueur ; ne pas publier dans la documentation de recette."
+        data_tests: [not_null]
+      - name: team_id
+        data_tests: [not_null]
+      - name: win
+        data_tests: [not_null]
+  - name: int_match_teams
+    description: "Une ligne par équipe et match ; totaux NULL si les statistiques sont incomplètes."
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [match_id, team_id]
+    columns:
+      - name: match_id
+        data_tests: [not_null]
+      - name: team_id
+        data_tests: [not_null]
+      - name: win
+        data_tests: [not_null]
+  - name: fct_player_matches
+    description: >
+      Fait joueur/partie. Filtrer is_kpi_eligible avant toute agrégation métier.
+      Moyennes des ratios par partie ; pourcentages de 0 à 100.
+      Les lignes exclues restent consultables via eligibility_reason.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [match_id, participant_id]
+      - unique_combination:
+          arguments:
+            columns: [match_id, puuid]
+    columns:
+      - name: match_id
+        data_tests: [not_null]
+      - name: participant_id
+        data_tests: [not_null]
+      - name: puuid
+        data_tests: [not_null]
+      - name: is_kpi_eligible
+        data_tests: [not_null]
+      - name: eligibility_reason
+        description: "V1 : queue/carte paramétrées, 10 participants, 2 équipes, durée positive, pas de fin anticipée."
+        data_tests: [not_null]
+      - name: kda
+        description: "(Kills + assists) / max(1, deaths) ; NULL si une composante manque."
+      - name: kill_participation_pct
+        description: "100 × (kills + assists) / kills équipe ; NULL si total nul ou incomplet."
+      - name: team_damage_share_pct
+        description: "100 × dégâts champions / dégâts champions équipe ; NULL si total nul ou incomplet."

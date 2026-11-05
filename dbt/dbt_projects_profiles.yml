@@ -1,0 +1,12 @@
+riftlab:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: ""
+      user: ""
+      role: SYSADMIN
+      warehouse: RIFTLAB_WH
+      database: RIFTLAB
+      schema: DBT_DEV
+      threads: 2

@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: riot_raw
+    description: "JSON Riot chargés depuis Azure Blob ; ingestion manuelle actuelle."
+    database: RIFTLAB
+    schema: RAW
+    tables:
+      - name: matches
+        identifier: MATCHES
+        description: "Une ligne chargée par document de fin de partie."
+        columns:
+          - name: payload
+            data_tests: [not_null]
+          - name: source_file
+            data_tests: [not_null]
+          - name: loaded_at
+            data_tests: [not_null]
+      - name: timelines
+        identifier: TIMELINES
+        description: "Une ligne chargée par document de chronologie."
+        columns:
+          - name: payload
+            data_tests: [not_null]
+          - name: source_file
+            data_tests: [not_null]
+          - name: loaded_at
+            data_tests: [not_null]

@@ -1,0 +1,20 @@
+select
+    m.match_id,
+    try_to_number(p.value:participantId::string) as participant_id,
+    nullif(trim(p.value:puuid::string), '') as puuid,
+    try_to_number(p.value:teamId::string) as team_id,
+    try_to_number(p.value:championId::string) as champion_id,
+    p.value:championName::string as champion_name,
+    nullif(trim(p.value:teamPosition::string), '') as role,
+    try_to_boolean(p.value:win::string) as win,
+    try_to_boolean(p.value:gameEndedInEarlySurrender::string) as early_surrender,
+    try_to_number(p.value:kills::string) as kills,
+    try_to_number(p.value:deaths::string) as deaths,
+    try_to_number(p.value:assists::string) as assists,
+    try_to_number(p.value:totalMinionsKilled::string) as lane_cs,
+    try_to_number(p.value:neutralMinionsKilled::string) as jungle_cs,
+    try_to_number(p.value:goldEarned::string) as gold_earned,
+    try_to_number(p.value:totalDamageDealtToChampions::string) as champion_damage,
+    try_to_number(p.value:visionScore::string) as vision_score
+from {{ ref('stg_matches') }} m,
+    lateral flatten(input => m.participants) p
