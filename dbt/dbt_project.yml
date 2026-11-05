@@ -20,8 +20,8 @@ models:
   riftlab:
     +materialized: view
     staging:
-      +schema: staging
+      +schema: STAGING
     intermediate:
-      +schema: intermediate
+      +schema: STAGING
     marts:
-      +schema: marts
+      +schema: MART

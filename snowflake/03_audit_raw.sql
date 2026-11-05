@@ -5,7 +5,7 @@
 
 USE ROLE SYSADMIN;
 USE WAREHOUSE RIFTLAB_WH;
-USE DATABASE RIFTLAB;
+USE DATABASE RIFTLAB_DEV;
 USE SCHEMA RAW;
 
 -- 1. Contexte et structure : colonnes attendues PAYLOAD, SOURCE_FILE, LOADED_AT.
@@ -16,17 +16,17 @@ SELECT
     CURRENT_DATABASE() AS active_database,
     CURRENT_SCHEMA() AS active_schema;
 
-DESCRIBE TABLE RIFTLAB.RAW.MATCHES;
-DESCRIBE TABLE RIFTLAB.RAW.TIMELINES;
+DESCRIBE TABLE RAW.MATCHES;
+DESCRIBE TABLE RAW.TIMELINES;
 
 -- 2. Volumes et complétude. Les compteurs d'anomalies doivent valoir zéro.
 -- NULLIF/TRIM détectent aussi un identifiant vide ; le cast traite le JSON null en SQL NULL.
 WITH raw_sources AS (
     SELECT 'MATCHES' AS source_table, payload, source_file, loaded_at
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
     UNION ALL
     SELECT 'TIMELINES', payload, source_file, loaded_at
-    FROM RIFTLAB.RAW.TIMELINES
+    FROM RAW.TIMELINES
 ), normalized AS (
     SELECT *, NULLIF(TRIM(payload:metadata:matchId::STRING), '') AS match_id
     FROM raw_sources
@@ -66,10 +66,10 @@ ORDER BY e.source_table;
 -- 3. Détail des IDs absents. Résultat attendu : aucune ligne.
 WITH raw_sources AS (
     SELECT 'MATCHES' AS source_table, payload, source_file, loaded_at
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
     UNION ALL
     SELECT 'TIMELINES', payload, source_file, loaded_at
-    FROM RIFTLAB.RAW.TIMELINES
+    FROM RAW.TIMELINES
 )
 SELECT source_table, source_file, loaded_at, TYPEOF(payload) AS payload_type
 FROM raw_sources
@@ -81,10 +81,10 @@ ORDER BY source_table, source_file;
 -- (notamment si seule la représentation des objets diffère).
 WITH raw_sources AS (
     SELECT 'MATCHES' AS source_table, payload, source_file, loaded_at
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
     UNION ALL
     SELECT 'TIMELINES', payload, source_file, loaded_at
-    FROM RIFTLAB.RAW.TIMELINES
+    FROM RAW.TIMELINES
 ), normalized AS (
     SELECT *, NULLIF(TRIM(payload:metadata:matchId::STRING), '') AS match_id
     FROM raw_sources
@@ -106,12 +106,12 @@ ORDER BY source_table, match_id;
 -- 5. Couverture des paires. L'agrégation préalable évite de multiplier les doublons.
 WITH matches AS (
     SELECT NULLIF(TRIM(payload:metadata:matchId::STRING), '') AS match_id, COUNT(*) AS copies
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
     WHERE NULLIF(TRIM(payload:metadata:matchId::STRING), '') IS NOT NULL
     GROUP BY 1
 ), timelines AS (
     SELECT NULLIF(TRIM(payload:metadata:matchId::STRING), '') AS match_id, COUNT(*) AS copies
-    FROM RIFTLAB.RAW.TIMELINES
+    FROM RAW.TIMELINES
     WHERE NULLIF(TRIM(payload:metadata:matchId::STRING), '') IS NOT NULL
     GROUP BY 1
 ), pairs AS (
@@ -135,10 +135,10 @@ ORDER BY pair_status;
 -- 6. Liste des orphelins. Résultat attendu : aucune ligne, sinon expliquer la couverture.
 WITH matches AS (
     SELECT DISTINCT NULLIF(TRIM(payload:metadata:matchId::STRING), '') AS match_id
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
 ), timelines AS (
     SELECT DISTINCT NULLIF(TRIM(payload:metadata:matchId::STRING), '') AS match_id
-    FROM RIFTLAB.RAW.TIMELINES
+    FROM RAW.TIMELINES
 )
 SELECT
     COALESCE(m.match_id, t.match_id) AS match_id,
@@ -158,7 +158,7 @@ WITH structures AS (
         ARRAY_SIZE(payload:info:participants) AS participant_count,
         ARRAY_SIZE(payload:info:teams) AS team_count,
         NULL::INTEGER AS frame_count
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
     UNION ALL
     SELECT
         'TIMELINES',
@@ -167,7 +167,7 @@ WITH structures AS (
         ARRAY_SIZE(payload:info:participants),
         NULL::INTEGER,
         ARRAY_SIZE(payload:info:frames)
-    FROM RIFTLAB.RAW.TIMELINES
+    FROM RAW.TIMELINES
 )
 SELECT *
 FROM structures

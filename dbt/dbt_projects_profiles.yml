@@ -1,12 +1,22 @@
 riftlab:
   target: dev
   outputs:
+    # Snowflake utilise le compte et l'utilisateur de la session du Workspace.
     dev:
       type: snowflake
-      account: ""
-      user: ""
+      account: "snowsight"
+      user: "snowsight"
       role: SYSADMIN
       warehouse: RIFTLAB_WH
-      database: RIFTLAB
-      schema: DBT_DEV
+      database: RIFTLAB_DEV
+      schema: STAGING
+      threads: 2
+    prod:
+      type: snowflake
+      account: "snowsight"
+      user: "snowsight"
+      role: SYSADMIN
+      warehouse: RIFTLAB_WH
+      database: RIFTLAB_PROD
+      schema: STAGING
       threads: 2

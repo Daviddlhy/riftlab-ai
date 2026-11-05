@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: riot_raw
     description: "JSON Riot chargés depuis Azure Blob ; ingestion manuelle actuelle."
-    database: RIFTLAB
+    database: "{{ target.database }}"
     schema: RAW
     tables:
       - name: matches

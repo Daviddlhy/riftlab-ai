@@ -1,29 +1,29 @@
--- À exécuter après un Build réussi dans Snowsight avec la cible dev du profil riftlab.
--- Adapter les noms de schéma si le préfixe DBT_DEV du profil change.
+-- À exécuter après un Build réussi dans Snowsight.
+-- Pour la cible prod, remplacer RIFTLAB_DEV par RIFTLAB_PROD dans USE DATABASE.
 -- Lecture seule, sauf la variable locale de session target_puuid.
 USE ROLE SYSADMIN;
 USE WAREHOUSE RIFTLAB_WH;
-USE DATABASE RIFTLAB;
+USE DATABASE RIFTLAB_DEV;
 
 -- 1. Volumes : le fait doit contenir autant de lignes que les participants.
 SELECT 'STG_MATCHES' AS model_name, COUNT(*) AS row_count
-FROM RIFTLAB.DBT_DEV_STAGING.STG_MATCHES
+FROM STAGING.STG_MATCHES
 UNION ALL
-SELECT 'STG_TIMELINES', COUNT(*) FROM RIFTLAB.DBT_DEV_STAGING.STG_TIMELINES
+SELECT 'STG_TIMELINES', COUNT(*) FROM STAGING.STG_TIMELINES
 UNION ALL
 SELECT 'INT_MATCH_PARTICIPANTS', COUNT(*)
-FROM RIFTLAB.DBT_DEV_INTERMEDIATE.INT_MATCH_PARTICIPANTS
+FROM STAGING.INT_MATCH_PARTICIPANTS
 UNION ALL
-SELECT 'INT_MATCH_TEAMS', COUNT(*) FROM RIFTLAB.DBT_DEV_INTERMEDIATE.INT_MATCH_TEAMS
+SELECT 'INT_MATCH_TEAMS', COUNT(*) FROM STAGING.INT_MATCH_TEAMS
 UNION ALL
-SELECT 'FCT_PLAYER_MATCHES', COUNT(*) FROM RIFTLAB.DBT_DEV_MARTS.FCT_PLAYER_MATCHES;
+SELECT 'FCT_PLAYER_MATCHES', COUNT(*) FROM MART.FCT_PLAYER_MATCHES;
 
 -- 2. Comprendre les exclusions avant toute interprétation des moyennes.
 SELECT
     eligibility_reason,
     COUNT(*) AS participant_rows,
     COUNT(DISTINCT match_id) AS match_count
-FROM RIFTLAB.DBT_DEV_MARTS.FCT_PLAYER_MATCHES
+FROM MART.FCT_PLAYER_MATCHES
 GROUP BY eligibility_reason
 ORDER BY eligibility_reason;
 
@@ -48,7 +48,7 @@ SELECT
     COUNT(kill_participation_pct) AS games_with_kill_participation,
     AVG(team_damage_share_pct) AS avg_team_damage_share_pct,
     COUNT(team_damage_share_pct) AS games_with_damage_share
-FROM RIFTLAB.DBT_DEV_MARTS.FCT_PLAYER_MATCHES
+FROM MART.FCT_PLAYER_MATCHES
 WHERE is_kpi_eligible AND puuid = $target_puuid;
 
 -- 5. Parties à rapprocher des JSON sources pour la recette manuelle.
@@ -58,7 +58,7 @@ SELECT
     kda, cs_per_minute, gold_per_minute, champion_damage_per_minute,
     vision_per_minute, kill_participation_pct, team_damage_share_pct,
     is_kpi_eligible, eligibility_reason
-FROM RIFTLAB.DBT_DEV_MARTS.FCT_PLAYER_MATCHES
+FROM MART.FCT_PLAYER_MATCHES
 WHERE puuid = $target_puuid
 ORDER BY game_start_utc DESC, match_id
 LIMIT 10;

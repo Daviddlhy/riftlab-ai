@@ -5,7 +5,7 @@
 
 USE ROLE SYSADMIN;
 USE WAREHOUSE RIFTLAB_WH;
-USE DATABASE RIFTLAB;
+USE DATABASE RIFTLAB_DEV;
 USE SCHEMA RAW;
 
 -- 1. Périmètre réellement disponible. Confirmer queue, carte et patch avant les KPI.
@@ -17,7 +17,7 @@ SELECT
     ARRAY_SIZE(payload:info:participants) AS participant_count,
     ARRAY_SIZE(payload:info:teams) AS team_count,
     COUNT(*) AS raw_rows
-FROM RIFTLAB.RAW.MATCHES
+FROM RAW.MATCHES
 GROUP BY 1, 2, 3, 4, 5, 6
 ORDER BY raw_rows DESC, game_version;
 
@@ -31,7 +31,7 @@ WITH durations AS (
         TRY_TO_NUMBER(payload:info:gameStartTimestamp::STRING) AS start_ms,
         TRY_TO_NUMBER(payload:info:gameEndTimestamp::STRING) AS end_ms,
         TRY_TO_NUMBER(payload:info:gameDuration::STRING) AS duration_value
-    FROM RIFTLAB.RAW.MATCHES
+    FROM RAW.MATCHES
 )
 SELECT
     match_id,
@@ -68,7 +68,7 @@ WITH participants AS (
         TRY_TO_NUMBER(p.value:goldEarned::STRING) AS gold,
         TRY_TO_NUMBER(p.value:totalDamageDealtToChampions::STRING) AS champion_damage,
         TRY_TO_NUMBER(p.value:visionScore::STRING) AS vision
-    FROM RIFTLAB.RAW.MATCHES m,
+    FROM RAW.MATCHES m,
         LATERAL FLATTEN(INPUT => m.payload:info:participants, OUTER => TRUE) p
 )
 SELECT
@@ -97,7 +97,7 @@ SELECT
     TRY_TO_BOOLEAN(p.value:gameEndedInEarlySurrender::STRING) AS early_surrender,
     TRY_TO_BOOLEAN(p.value:gameEndedInSurrender::STRING) AS surrender,
     COUNT(*) AS participant_rows
-FROM RIFTLAB.RAW.MATCHES m,
+FROM RAW.MATCHES m,
     LATERAL FLATTEN(INPUT => m.payload:info:participants) p
 GROUP BY 1, 2, 3, 4
 ORDER BY queue_id, team_position, early_surrender, surrender;
@@ -108,7 +108,7 @@ SELECT
     m.payload:metadata:matchId::STRING AS match_id,
     TRY_TO_NUMBER(p.value:participantId::STRING) AS participant_id,
     COUNT(*) AS participant_rows
-FROM RIFTLAB.RAW.MATCHES m,
+FROM RAW.MATCHES m,
     LATERAL FLATTEN(INPUT => m.payload:info:participants) p
 GROUP BY 1, 2
 HAVING participant_id IS NULL OR COUNT(*) > 1
@@ -128,7 +128,7 @@ SELECT
     COALESCE(COUNT_IF(
         f.index IS NOT NULL AND TRY_TO_NUMBER(f.value:timestamp::STRING) IS NULL
     ), 0) AS invalid_timestamps
-FROM RIFTLAB.RAW.TIMELINES t,
+FROM RAW.TIMELINES t,
     LATERAL FLATTEN(INPUT => t.payload:info:frames, OUTER => TRUE) f
 GROUP BY 1, 2, 3, 4, 5
 ORDER BY match_id;
@@ -148,7 +148,7 @@ WITH targets AS (
         c.checkpoint_minute,
         c.target_ms,
         TRY_TO_NUMBER(f.value:timestamp::STRING) AS frame_timestamp_ms
-    FROM RIFTLAB.RAW.TIMELINES t
+    FROM RAW.TIMELINES t
     CROSS JOIN targets c,
         LATERAL FLATTEN(INPUT => t.payload:info:frames, OUTER => TRUE) f
 )
@@ -174,7 +174,7 @@ WITH participant_frames AS (
         TRY_TO_NUMBER(pf.value:xp::STRING) AS xp,
         TRY_TO_NUMBER(pf.value:minionsKilled::STRING) AS lane_cs,
         TRY_TO_NUMBER(pf.value:jungleMinionsKilled::STRING) AS jungle_cs
-    FROM RIFTLAB.RAW.TIMELINES t,
+    FROM RAW.TIMELINES t,
         LATERAL FLATTEN(INPUT => t.payload:info:frames) f,
         LATERAL FLATTEN(INPUT => f.value:participantFrames, OUTER => TRUE) pf
 )
