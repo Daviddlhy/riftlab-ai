@@ -11,7 +11,7 @@ models:
       - name: duration_seconds
         data_tests: [not_null]
   - name: stg_timelines
-    description: "Une timeline par match ; frames conservées pour les prochains modèles temporels."
+    description: "Une timeline par match ; source des mesures par joueur et par frame."
     columns:
       - name: match_id
         data_tests: [not_null, unique]
@@ -76,3 +76,41 @@ models:
         description: "100 × (kills + assists) / kills équipe ; NULL si total nul ou incomplet."
       - name: team_damage_share_pct
         description: "100 × dégâts champions / dégâts champions équipe ; NULL si total nul ou incomplet."
+  - name: int_participant_frames
+    description: "Une mesure Riot par match, participant et timestamp en millisecondes."
+    data_tests:
+      - unique_combination:
+          columns: [match_id, participant_id, frame_timestamp_ms]
+    columns:
+      - name: match_id
+        data_tests: [not_null]
+      - name: participant_id
+        data_tests: [not_null]
+      - name: frame_timestamp_ms
+        data_tests: [not_null]
+  - name: fct_player_checkpoints
+    description: >-
+      Sept repères par ligne de fct_player_matches, y compris les repères sans mesure.
+      Filtrer is_kpi_eligible pour le périmètre métier et checkpoint_status pour la couverture.
+    data_tests:
+      - unique_combination:
+          columns: [match_id, participant_id, checkpoint_code]
+    columns:
+      - name: checkpoint_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['M03', 'M05', 'M10', 'M15', 'M20', 'M30', 'FINAL']
+      - name: frame_offset_ms
+        description: "Timestamp réel moins timestamp cible ; un écart positif est autorisé jusqu'à 5 secondes."
+      - name: checkpoint_status
+        description: "Disponibilité de la mesure ; FINAL peut être disponible sans timeline."
+        data_tests: [not_null]
+      - name: total_gold
+        description: "Or cumulé de la frame, ou or gagné issu des statistiques du match pour FINAL."
+      - name: total_cs
+        description: "Sbires et monstres cumulés, issus des statistiques du match pour FINAL."
+      - name: xp
+        description: "XP cumulée de la frame ; pour FINAL, NULL si aucune frame à ±5 s de la fin."
+      - name: opponent_participant_id
+        description: "Adversaire unique du même rôle sur une partie éligible. Les écarts nécessitent aussi une mesure des deux côtés."
